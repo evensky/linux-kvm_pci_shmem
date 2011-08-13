@@ -71,10 +71,12 @@ OBJS	+= threadpool.o
 OBJS	+= util/parse-options.o
 OBJS	+= util/rbtree-interval.o
 OBJS	+= util/strbuf.o
+OBJS	+= util/shmem-util.o
 OBJS	+= virtio/9p.o
 OBJS	+= virtio/9p-pdu.o
 OBJS	+= hw/vesa.o
 OBJS	+= hw/i8042.o
+OBJS    += hw/pci-shmem.o
 
 FLAGS_BFD := $(CFLAGS) -lbfd
 has_bfd := $(call try-cc,$(SOURCE_BFD),$(FLAGS_BFD))
@@ -156,7 +158,7 @@ WARNINGS += -Wunused-result
 
 CFLAGS	+= $(WARNINGS)
 
-all: $(PROGRAM)
+all: $(PROGRAM) fill
 
 KVMTOOLS-VERSION-FILE:
 	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
@@ -165,6 +167,10 @@ KVMTOOLS-VERSION-FILE:
 $(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(OBJS) $(LIBS) -o $@
+
+fill: fill.o util/shmem-util.o
+	$(E) "  LINK    " $@
+	$(Q) $(CC) fill.o util/shmem-util.o $(LIBS) -o fill
 
 $(DEPS):
 
@@ -241,6 +247,7 @@ clean:
 	$(Q) rm -f cscope.*
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
 	$(Q) rm -f KVMTOOLS-VERSION-FILE
+	$(Q) rm -f fill fill.o
 .PHONY: clean
 
 KVM_DEV	?= /dev/kvm
