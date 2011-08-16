@@ -22,6 +22,7 @@
 #define SIGKVMDELMEM		(SIGRTMIN + 3)
 #define SIGKVMSTOP		(SIGRTMIN + 4)
 #define SIGKVMRESUME		(SIGRTMIN + 5)
+#define SIGKVMMEMSTAT		(SIGRTMIN + 6)
 
 struct kvm {
 	int			sys_fd;		/* For system ioctls(), i.e. /dev/kvm */
@@ -72,7 +73,7 @@ bool kvm__deregister_mmio(struct kvm *kvm, u64 phys_addr);
 void kvm__pause(void);
 void kvm__continue(void);
 void kvm__notify_paused(void);
-int kvm__get_pid_by_instance(const char *name);
+pid_t kvm__get_pid_by_instance(const char *name);
 int kvm__enumerate_instances(int (*callback)(const char *name, int pid));
 void kvm__remove_pidfile(const char *name);
 
