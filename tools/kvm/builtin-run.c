@@ -154,98 +154,105 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 
 static int shmem_parser(const struct option *opt, const char *arg, int unset)
 {
-  const uint64_t default_size = 16*1024*1024;
-  const uint64_t default_phys_addr = 0xc8000000;
-  const char * default_handle = "/kvm_shmem";
-  enum {PCI,UNK} addr_type = PCI;
-  uint64_t phys_addr;
-  uint64_t size;
-  char *handle = NULL;
-  int create = 0;
-  const char *p = arg;
-  char *next;
-  int base = 10;
-  
-  printf("shmem_parser(%p,%s,%d)\n",opt,arg,unset);
-  if (strcasestr(p,"pci:")) {
-    p += 4;
-    addr_type = PCI;
-  } else if (strcasestr(p,"mem:")) {
-    fprintf(stderr,"I can't add to E820 map yet.\n");
-    exit(1);
-  }
-  base = 10;
-  if (strcasestr(p,"0x"))
-    base = 16;
-  phys_addr = strtoll(p,&next,base);
-  if (next == p && phys_addr == 0) {
-    fprintf(stderr,"shmem: no physical addr specified, using default.\n");
-    phys_addr = default_phys_addr;
-  } 
-  if (*next != ':' && *next != '\0') {
-    fprintf(stderr,"shmem: unexpected chars after phys addr.\n");
-    exit(1);
-  }
-  if (*next == '\0')
-    p = next;
-  else
-    p = next+1;
-  base = 10;
-  if (strcasestr(p,"0x"))
-    base = 16;
-  size = strtoll(p,&next,base);
-  if (next == p && size == 0) {
-    fprintf(stderr,"shmem: no size specified, using default.\n");
-    size = default_size;
-  } 
-  if (*next != ':' && *next != '\0') {
-    fprintf(stderr,"shmem: unexpected chars after phys size. <%c><%c>\n",*next,*p);
-    exit(1);
-  }
-  if (*next == '\0')
-    p = next;
-  else 
-    p = next+1;
-  if (*p && (next = strcasestr(p,"handle="))) {
-    if (p != next) {
-      fprintf(stderr,"unexpected chars before handle\n");
-      exit(1);
-    }
-    p += 7; // skip handle=
-    next = strchrnul(p,':');
-    if (next-p) {
-      handle = malloc(next-p+1);
-      strncpy(handle,p,next-p);
-      handle[next-p] = '\0'; // just in case.
-    }
-    if (*next == '\0')
-      p = next;
-    else
-      p = next+1;
-  }
-  if (*p && strcasestr(p,"create")) {
-    create = 1;
-    p += strlen("create");
-  }
-  if (*p != '\0') {
-    fprintf(stderr,"shmem: unexpected trailing chars\n");
-    exit(1);
-  }
-  if (handle == NULL) {
-    handle = malloc(strlen(default_handle)+1);
-    strcpy(handle,default_handle);
-  }
-  printf("shmem: phys_addr = %lx\n",phys_addr);
-  printf("shmem: size      = %lx\n",size);
-  printf("shmem: handle    = %s\n",handle);
-  printf("shmem: create    = %d\n",create);
-  struct shmem_info *si = malloc(sizeof(struct shmem_info));
-  si->phys_addr = phys_addr;
-  si->size = size;
-  si->handle = handle;
-  si->create = create;
-  pci_shmem__register_mem(si); // ownership of si, etc. passed on.
-  return 0;
+	const uint64_t default_size = 16 * 1024 * 1024;
+	const uint64_t default_phys_addr = 0xc8000000;
+	const char *default_handle = "/kvm_shmem";
+	enum { PCI, UNK } addr_type = PCI;
+	uint64_t phys_addr;
+	uint64_t size;
+	char *handle = NULL;
+	int create = 0;
+	const char *p = arg;
+	char *next;
+	int base = 10;
+	int verbose = 0;
+
+	if (verbose)
+		printf("shmem_parser(%p,%s,%d)\n", opt, arg, unset);
+	if (strcasestr(p, "pci:")) {
+		p += 4;
+		addr_type = PCI;
+	} else if (strcasestr(p, "mem:")) {
+		fprintf(stderr, "I can't add to E820 map yet.\n");
+		exit(1);
+	}
+	base = 10;
+	if (strcasestr(p, "0x"))
+		base = 16;
+	phys_addr = strtoll(p, &next, base);
+	if (next == p && phys_addr == 0) {
+		fprintf(stderr,
+			"shmem: no physical addr specified, using default.\n");
+		phys_addr = default_phys_addr;
+	}
+	if (*next != ':' && *next != '\0') {
+		fprintf(stderr, "shmem: unexpected chars after phys addr.\n");
+		exit(1);
+	}
+	if (*next == '\0')
+		p = next;
+	else
+		p = next + 1;
+	base = 10;
+	if (strcasestr(p, "0x"))
+		base = 16;
+	size = strtoll(p, &next, base);
+	if (next == p && size == 0) {
+		fprintf(stderr, "shmem: no size specified, using default.\n");
+		size = default_size;
+	}
+	if (*next != ':' && *next != '\0') {
+		fprintf(stderr,
+			"shmem: unexpected chars after phys size. <%c><%c>\n",
+			*next, *p);
+		exit(1);
+	}
+	if (*next == '\0')
+		p = next;
+	else
+		p = next + 1;
+	if (*p && (next = strcasestr(p, "handle="))) {
+		if (p != next) {
+			fprintf(stderr, "unexpected chars before handle\n");
+			exit(1);
+		}
+		p += 7;		// skip handle=
+		next = strchrnul(p, ':');
+		if (next - p) {
+			handle = malloc(next - p + 1);
+			strncpy(handle, p, next - p);
+			handle[next - p] = '\0';	// just in case.
+		}
+		if (*next == '\0')
+			p = next;
+		else
+			p = next + 1;
+	}
+	if (*p && strcasestr(p, "create")) {
+		create = 1;
+		p += strlen("create");
+	}
+	if (*p != '\0') {
+		fprintf(stderr, "shmem: unexpected trailing chars\n");
+		exit(1);
+	}
+	if (handle == NULL) {
+		handle = malloc(strlen(default_handle) + 1);
+		strcpy(handle, default_handle);
+	}
+	if (verbose) {
+		printf("shmem: phys_addr = %lx\n", phys_addr);
+		printf("shmem: size      = %lx\n", size);
+		printf("shmem: handle    = %s\n", handle);
+		printf("shmem: create    = %d\n", create);
+	}
+	struct shmem_info *si = malloc(sizeof(struct shmem_info));
+	si->phys_addr = phys_addr;
+	si->size = size;
+	si->handle = handle;
+	si->create = create;
+	pci_shmem__register_mem(si);	// ownership of si, etc. passed on.
+	return 0;
 }
 
 static const struct option options[] = {
@@ -254,8 +261,10 @@ static const struct option options[] = {
 			"A name for the guest"),
 	OPT_INTEGER('c', "cpus", &nrcpus, "Number of CPUs"),
 	OPT_U64('m', "mem", &ram_size, "Virtual machine memory size in MiB."),
-	OPT_CALLBACK('\0', "shmem", NULL, "[pci:]<addr>:<size>[:handle=<handle>][:create]",
-		     "Share host shmem with guest via pci device", shmem_parser),
+	OPT_CALLBACK('\0', "shmem", NULL,
+		     "[pci:]<addr>:<size>[:handle=<handle>][:create]",
+		     "Share host shmem with guest via pci device",
+		     shmem_parser),
 	OPT_CALLBACK('d', "disk", NULL, "image or rootfs_dir", "Disk image or rootfs directory", img_name_parser),
 	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),

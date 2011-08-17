@@ -11,18 +11,14 @@
 #include <stdlib.h>
 
 struct shmem_info {
-  uint64_t phys_addr;
-  uint64_t size;
-  char *handle;
-  int create;
+	uint64_t phys_addr;
+	uint64_t size;
+	char *handle;
+	int create;
 };
 
+inline void *setup_shmem(const char *key, size_t len, int creating,
+			 int verbose);
+inline void fill_mem(void *buf, size_t buf_size, char *fill, size_t fill_len);
 
-
-inline void *dae_shmem(const char *key,size_t len,int creating,
-			      int verbose);
-
-inline void fill_mem(void *buf, size_t buf_size, char *fill,
-			    size_t fill_len);
-
-#endif // SHMEM_UTIL_H
+#endif				// SHMEM_UTIL_H
