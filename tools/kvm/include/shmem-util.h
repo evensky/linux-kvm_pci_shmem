@@ -10,6 +10,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define SHMEM_DEFAULT_SIZE (16 << MB_SHIFT)
+#define SHMEM_DEFAULT_ADDR (0xc8000000)
+#define SHMEM_DEFAULT_HANDLE "/kvm_shmem"
 struct shmem_info {
 	uint64_t phys_addr;
 	uint64_t size;

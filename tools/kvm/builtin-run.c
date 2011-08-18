@@ -154,9 +154,9 @@ static int virtio_9p_rootdir_parser(const struct option *opt, const char *arg, i
 
 static int shmem_parser(const struct option *opt, const char *arg, int unset)
 {
-	const uint64_t default_size = 16 * 1024 * 1024;
-	const uint64_t default_phys_addr = 0xc8000000;
-	const char *default_handle = "/kvm_shmem";
+	const uint64_t default_size = SHMEM_DEFAULT_SIZE;
+	const uint64_t default_phys_addr = SHMEM_DEFAULT_ADDR;
+	const char *default_handle = SHMEM_DEFAULT_HANDLE;
 	enum { PCI, UNK } addr_type = PCI;
 	uint64_t phys_addr;
 	uint64_t size;
@@ -167,27 +167,25 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	int base = 10;
 	int verbose = 0;
 
+	const int skip_pci = strlen("pci:");
 	if (verbose)
-		printf("shmem_parser(%p,%s,%d)\n", opt, arg, unset);
+		pr_info("shmem_parser(%p,%s,%d)", opt, arg, unset);
 	if (strcasestr(p, "pci:")) {
-		p += 4;
+		p += skip_pci;
 		addr_type = PCI;
 	} else if (strcasestr(p, "mem:")) {
-		fprintf(stderr, "I can't add to E820 map yet.\n");
-		exit(1);
+		die("I can't add to E820 map yet.\n");
 	}
 	base = 10;
 	if (strcasestr(p, "0x"))
 		base = 16;
 	phys_addr = strtoll(p, &next, base);
 	if (next == p && phys_addr == 0) {
-		fprintf(stderr,
-			"shmem: no physical addr specified, using default.\n");
+		pr_info("shmem: no physical addr specified, using default.");
 		phys_addr = default_phys_addr;
 	}
 	if (*next != ':' && *next != '\0') {
-		fprintf(stderr, "shmem: unexpected chars after phys addr.\n");
-		exit(1);
+		die("shmem: unexpected chars after phys addr.\n");
 	}
 	if (*next == '\0')
 		p = next;
@@ -198,30 +196,28 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		base = 16;
 	size = strtoll(p, &next, base);
 	if (next == p && size == 0) {
-		fprintf(stderr, "shmem: no size specified, using default.\n");
+		pr_info("shmem: no size specified, using default.");
 		size = default_size;
 	}
 	if (*next != ':' && *next != '\0') {
-		fprintf(stderr,
-			"shmem: unexpected chars after phys size. <%c><%c>\n",
+		die("shmem: unexpected chars after phys size. <%c><%c>\n",
 			*next, *p);
-		exit(1);
 	}
 	if (*next == '\0')
 		p = next;
 	else
 		p = next + 1;
+	const int skip_handle = strlen("handle=");
 	if (*p && (next = strcasestr(p, "handle="))) {
 		if (p != next) {
-			fprintf(stderr, "unexpected chars before handle\n");
-			exit(1);
+			die("unexpected chars before handle\n");
 		}
-		p += 7;		// skip handle=
+		p += skip_handle;
 		next = strchrnul(p, ':');
 		if (next - p) {
 			handle = malloc(next - p + 1);
 			strncpy(handle, p, next - p);
-			handle[next - p] = '\0';	// just in case.
+			handle[next - p] = '\0';	/* just in case.*/
 		}
 		if (*next == '\0')
 			p = next;
@@ -233,25 +229,24 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		p += strlen("create");
 	}
 	if (*p != '\0') {
-		fprintf(stderr, "shmem: unexpected trailing chars\n");
-		exit(1);
+		die("shmem: unexpected trailing chars\n");
 	}
 	if (handle == NULL) {
 		handle = malloc(strlen(default_handle) + 1);
 		strcpy(handle, default_handle);
 	}
 	if (verbose) {
-		printf("shmem: phys_addr = %lx\n", phys_addr);
-		printf("shmem: size      = %lx\n", size);
-		printf("shmem: handle    = %s\n", handle);
-		printf("shmem: create    = %d\n", create);
+		pr_info("shmem: phys_addr = %lx", phys_addr);
+		pr_info("shmem: size      = %lx", size);
+		pr_info("shmem: handle    = %s", handle);
+		pr_info("shmem: create    = %d", create);
 	}
 	struct shmem_info *si = malloc(sizeof(struct shmem_info));
 	si->phys_addr = phys_addr;
 	si->size = size;
 	si->handle = handle;
 	si->create = create;
-	pci_shmem__register_mem(si);	// ownership of si, etc. passed on.
+	pci_shmem__register_mem(si);	/* ownership of si, etc. passed on.*/
 	return 0;
 }
 

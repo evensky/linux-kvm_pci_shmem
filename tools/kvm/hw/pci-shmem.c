@@ -4,23 +4,23 @@
 #include "kvm/irq.h"
 #include "kvm/kvm.h"
 #include "kvm/pci.h"
+#include "kvm/util.h"
 
 static struct pci_device_header pci_shmem_pci_device = {
-	.vendor_id = PCI_VENDOR_ID_REDHAT_QUMRANET,	//shameless reuse
-	.device_id = PCI_DEVICE_ID_PCI_SHMEM,	// arbitrary value
+	.vendor_id = PCI_VENDOR_ID_PCI_SHMEM,
+	.device_id = PCI_DEVICE_ID_PCI_SHMEM,
 	.header_type = PCI_HEADER_TYPE_NORMAL,
-	.class = 0xFF0000,	// misc pci device
+	.class = 0xFF0000,	/* misc pci device */
 };
 
 static struct shmem_info *shmem_region = NULL;
 
 int pci_shmem__register_mem(struct shmem_info *si)
 {
-	if (shmem_region == NULL)
+	if (shmem_region == NULL) {
 		shmem_region = si;
-	else {
-		fprintf(stderr,
-			"pci-shmem: only supporting a single region. ignoring request.\n");
+	} else {
+		pr_warning("only single shmem currently avail. ignoring.\n");
 		free(si);
 	}
 	return 0;
@@ -32,15 +32,15 @@ int pci_shmem__init(struct kvm *kvm)
 	char *mem;
 	int verbose = 0;
 	if (irq__register_device(PCI_DEVICE_ID_PCI_SHMEM, &dev, &pin, &line)
-	    <  0)
+	    < 0)
 		return 0;
-	// ignore irq stuff, just want bus info for now.
-	//pci_shmem_pci_device.irq_pin          = pin;
-	//pci_shmem_pci_device.irq_line         = line;
+	/* ignore irq stuff, just want bus info for now. */
+	/* pci_shmem_pci_device.irq_pin          = pin; */
+	/* pci_shmem_pci_device.irq_line         = line; */
 	if (shmem_region == 0) {
 		if (verbose == 1)
-			fprintf(stderr,
-				"pci_shmem_init: memory region not registered\n");
+			pr_warning
+			    ("pci_shmem_init: memory region not registered\n");
 		return 0;
 	}
 	pci_shmem_pci_device.bar[0] =
