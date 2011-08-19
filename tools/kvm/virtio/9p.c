@@ -5,6 +5,7 @@
 #include "kvm/ioeventfd.h"
 #include "kvm/irq.h"
 #include "kvm/virtio-9p.h"
+#include "kvm/guest_compat.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,11 +30,11 @@ static const char *rel_to_abs(struct p9_dev *p9dev,
 
 static bool virtio_p9_dev_in(struct p9_dev *p9dev, void *data,
 			     unsigned long offset,
-			     int size, u32 count)
+			     int size)
 {
 	u8 *config_space = (u8 *) p9dev->config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
@@ -42,7 +43,7 @@ static bool virtio_p9_dev_in(struct p9_dev *p9dev, void *data,
 }
 
 static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm,
-				u16 port, void *data, int size, u32 count)
+				u16 port, void *data, int size)
 {
 	bool ret = true;
 	unsigned long offset;
@@ -76,7 +77,7 @@ static bool virtio_p9_pci_io_in(struct ioport *ioport, struct kvm *kvm,
 		p9dev->isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
-		ret = virtio_p9_dev_in(p9dev, data, offset, size, count);
+		ret = virtio_p9_dev_in(p9dev, data, offset, size);
 		break;
 	};
 
@@ -762,7 +763,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 }
 
 static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
-				 u16 port, void *data, int size, u32 count)
+				 u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -780,6 +781,8 @@ static bool virtio_p9_pci_io_out(struct ioport *ioport, struct kvm *kvm,
 		void *p;
 		struct p9_dev_job *job;
 		struct virt_queue *queue;
+
+		compat__remove_message(p9dev->compat_id);
 
 		job			= &p9dev->jobs[p9dev->queue_selector];
 		queue			= &p9dev->vqs[p9dev->queue_selector];
@@ -899,6 +902,12 @@ int virtio_9p__init(struct kvm *kvm, const char *root, const char *tag_name)
 		.bar[0]			= p9_base_addr | PCI_BASE_ADDRESS_SPACE_IO,
 	};
 	pci__register(&p9dev->pci_hdr, dev);
+
+	p9dev->compat_id = compat__add_message("virtio-9p device was not detected",
+						"While you have requested a virtio-9p device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_NET_9P_VIRTIO.");
 
 	return err;
 

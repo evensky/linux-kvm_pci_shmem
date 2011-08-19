@@ -10,6 +10,7 @@
 #include "kvm/irq.h"
 #include "kvm/uip.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_net.h>
 #include <linux/if_tun.h>
@@ -63,6 +64,7 @@ struct net_dev {
 	u32				vq_vector[VIRTIO_NET_NUM_QUEUES];
 	u32				gsis[VIRTIO_NET_NUM_QUEUES];
 	u32				msix_io_block;
+	int				compat_id;
 
 	pthread_t			io_rx_thread;
 	pthread_mutex_t			io_rx_lock;
@@ -174,11 +176,11 @@ static void *virtio_net_tx_thread(void *p)
 
 }
 
-static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
+static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *)&ndev.config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	if ((offset - VIRTIO_MSI_CONFIG_VECTOR) > sizeof(struct virtio_net_config))
@@ -189,7 +191,7 @@ static bool virtio_net_pci_io_device_specific_in(void *data, unsigned long offse
 	return true;
 }
 
-static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long	offset	= port - ndev.base_addr;
 	bool		ret	= true;
@@ -222,7 +224,7 @@ static bool virtio_net_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 		ndev.isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
-		ret = virtio_net_pci_io_device_specific_in(data, offset, size, count);
+		ret = virtio_net_pci_io_device_specific_in(data, offset, size);
 	};
 
 	mutex_unlock(&ndev.mutex);
@@ -248,7 +250,7 @@ static void virtio_net_handle_callback(struct kvm *kvm, u16 queue_index)
 	}
 }
 
-static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long	offset		= port - ndev.base_addr;
 	bool		ret		= true;
@@ -264,6 +266,8 @@ static bool virtio_net_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		void *p;
 
 		assert(ndev.queue_selector < VIRTIO_NET_NUM_QUEUES);
+
+		compat__remove_message(ndev.compat_id);
 
 		queue			= &ndev.vqs[ndev.queue_selector];
 		queue->pfn		= ioport__read32(data);
@@ -520,4 +524,10 @@ void virtio_net__init(const struct virtio_net_parameters *params)
 
 		ioeventfd__add_event(&ioevent);
 	}
+
+	ndev.compat_id = compat__add_message("virtio-net device was not detected",
+						"While you have requested a virtio-net device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_NET.");
 }

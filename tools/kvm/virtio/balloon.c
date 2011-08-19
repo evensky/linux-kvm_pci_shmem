@@ -11,6 +11,7 @@
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
 #include "kvm/ioeventfd.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_ring.h>
 #include <linux/virtio_balloon.h>
@@ -48,17 +49,18 @@ struct bln_dev {
 	u16			stat_count;
 	int			stat_waitfd;
 
+	int			compat_id;
 	struct virtio_balloon_config config;
 };
 
 static struct bln_dev bdev;
 extern struct kvm *kvm;
 
-static bool virtio_bln_dev_in(void *data, unsigned long offset, int size, u32 count)
+static bool virtio_bln_dev_in(void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *) &bdev.config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	ioport__write8(data, config_space[offset - VIRTIO_MSI_CONFIG_VECTOR]);
@@ -66,11 +68,11 @@ static bool virtio_bln_dev_in(void *data, unsigned long offset, int size, u32 co
 	return true;
 }
 
-static bool virtio_bln_dev_out(void *data, unsigned long offset, int size, u32 count)
+static bool virtio_bln_dev_out(void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *) &bdev.config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	config_space[offset - VIRTIO_MSI_CONFIG_VECTOR] = *(u8 *)data;
@@ -78,7 +80,7 @@ static bool virtio_bln_dev_out(void *data, unsigned long offset, int size, u32 c
 	return true;
 }
 
-static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -109,7 +111,7 @@ static bool virtio_bln_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 por
 		bdev.isr = VIRTIO_IRQ_LOW;
 		break;
 	default:
-		ret = virtio_bln_dev_in(data, offset, size, count);
+		ret = virtio_bln_dev_in(data, offset, size);
 		break;
 	};
 
@@ -195,7 +197,7 @@ static void ioevent_callback(struct kvm *kvm, void *param)
 	thread_pool__do_job(param);
 }
 
-static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset;
 	bool ret = true;
@@ -210,6 +212,8 @@ static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 	case VIRTIO_PCI_QUEUE_PFN: {
 		struct virt_queue *queue;
 		void *p;
+
+		compat__remove_message(bdev.compat_id);
 
 		queue			= &bdev.vqs[bdev.queue_selector];
 		queue->pfn		= ioport__read32(data);
@@ -249,7 +253,7 @@ static bool virtio_bln_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 po
 		bdev.config_vector	= VIRTIO_MSI_NO_VECTOR;
 		break;
 	default:
-		ret = virtio_bln_dev_out(data, offset, size, count);
+		ret = virtio_bln_dev_out(data, offset, size);
 		break;
 	};
 
@@ -356,7 +360,7 @@ void virtio_bln__init(struct kvm *kvm)
 
 	bdev.base_addr = bdev_base_addr;
 
-	if (irq__register_device(VIRTIO_ID_RNG, &dev, &pin, &line) < 0)
+	if (irq__register_device(VIRTIO_ID_BALLOON, &dev, &pin, &line) < 0)
 		return;
 
 	bdev.pci_hdr.irq_pin	= pin;
@@ -366,4 +370,10 @@ void virtio_bln__init(struct kvm *kvm)
 	memset(&bdev.config, 0, sizeof(struct virtio_balloon_config));
 
 	pci__register(&bdev.pci_hdr, dev);
+
+	bdev.compat_id = compat__add_message("virtio-balloon device was not detected",
+						"While you have requested a virtio-balloon device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_BALLOON.");
 }

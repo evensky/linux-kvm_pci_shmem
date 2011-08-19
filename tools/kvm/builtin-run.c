@@ -27,6 +27,7 @@
 #include "kvm/rtc.h"
 #include "kvm/sdl.h"
 #include "kvm/vnc.h"
+#include "kvm/guest_compat.h"
 #include "shmem-util.h"
 #include "kvm/pci-shmem.h"
 
@@ -62,7 +63,7 @@ __thread struct kvm_cpu *current_kvm_cpu;
 
 static u64 ram_size;
 static u8  image_count;
-static int virtio_rng;
+static bool virtio_rng;
 static const char *kernel_cmdline;
 static const char *kernel_filename;
 static const char *vmlinux_filename;
@@ -264,7 +265,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('\0', "balloon", &balloon, "Enable virtio balloon"),
 	OPT_BOOLEAN('\0', "vnc", &vnc, "Enable VNC framebuffer"),
 	OPT_BOOLEAN('\0', "sdl", &sdl, "Enable SDL framebuffer"),
-	OPT_INCR('\0', "rng", &virtio_rng, "Enable virtio Random Number Generator"),
+	OPT_BOOLEAN('\0', "rng", &virtio_rng, "Enable virtio Random Number Generator"),
 	OPT_CALLBACK('\0', "9p", NULL, "dir_to_share,tag_name",
 		     "Enable virtio 9p to share files between host and guest", virtio_9p_rootdir_parser),
 	OPT_STRING('\0', "console", &console, "serial or virtio",
@@ -744,8 +745,7 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		virtio_console__init(kvm);
 
 	if (virtio_rng)
-		while (virtio_rng--)
-			virtio_rng__init(kvm);
+		virtio_rng__init(kvm);
 
 	if (balloon)
 		virtio_bln__init(kvm);
@@ -834,6 +834,8 @@ int kvm_cmd_run(int argc, const char **argv, const char *prefix)
 		if (ret != NULL)
 			exit_code = 1;
 	}
+
+	compat__print_all_messages();
 
 	fb__stop();
 

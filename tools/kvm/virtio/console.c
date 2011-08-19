@@ -10,6 +10,7 @@
 #include "kvm/pci.h"
 #include "kvm/threadpool.h"
 #include "kvm/irq.h"
+#include "kvm/guest_compat.h"
 
 #include <linux/virtio_console.h>
 #include <linux/virtio_ring.h>
@@ -50,6 +51,7 @@ struct con_dev {
 	u8				isr;
 	u16				queue_selector;
 	u16				base_addr;
+	int				compat_id;
 
 	struct thread_pool__job		jobs[VIRTIO_CONSOLE_NUM_QUEUES];
 };
@@ -96,11 +98,11 @@ void virtio_console__inject_interrupt(struct kvm *kvm)
 	thread_pool__do_job(&cdev.jobs[VIRTIO_CONSOLE_RX_QUEUE]);
 }
 
-static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long offset, int size, u32 count)
+static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long offset, int size)
 {
 	u8 *config_space = (u8 *) &cdev.console_config;
 
-	if (size != 1 || count != 1)
+	if (size != 1)
 		return false;
 
 	if ((offset - VIRTIO_MSI_CONFIG_VECTOR) > sizeof(struct virtio_console_config))
@@ -111,7 +113,7 @@ static bool virtio_console_pci_io_device_specific_in(void *data, unsigned long o
 	return true;
 }
 
-static bool virtio_console_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_console_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset = port - cdev.base_addr;
 	bool ret = true;
@@ -147,7 +149,7 @@ static bool virtio_console_pci_io_in(struct ioport *ioport, struct kvm *kvm, u16
 		ioport__write16(data, cdev.config_vector);
 		break;
 	default:
-		ret = virtio_console_pci_io_device_specific_in(data, offset, size, count);
+		ret = virtio_console_pci_io_device_specific_in(data, offset, size);
 	};
 
 	mutex_unlock(&cdev.mutex);
@@ -179,7 +181,7 @@ static void virtio_console_handle_callback(struct kvm *kvm, void *param)
 
 }
 
-static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size, u32 count)
+static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u16 port, void *data, int size)
 {
 	unsigned long offset = port - cdev.base_addr;
 	bool ret = true;
@@ -195,6 +197,8 @@ static bool virtio_console_pci_io_out(struct ioport *ioport, struct kvm *kvm, u1
 		void *p;
 
 		assert(cdev.queue_selector < VIRTIO_CONSOLE_NUM_QUEUES);
+
+		compat__remove_message(cdev.compat_id);
 
 		queue			= &cdev.vqs[cdev.queue_selector];
 		queue->pfn		= ioport__read32(data);
@@ -254,4 +258,10 @@ void virtio_console__init(struct kvm *kvm)
 	virtio_console_pci_device.bar[0]	= console_base_addr | PCI_BASE_ADDRESS_SPACE_IO;
 	cdev.base_addr				= console_base_addr;
 	pci__register(&virtio_console_pci_device, dev);
+
+	cdev.compat_id = compat__add_message("virtio-console device was not detected",
+						"While you have requested a virtio-console device, "
+						"the guest kernel didn't seem to detect it.\n"
+						"Please make sure that the kernel was compiled"
+						"with CONFIG_VIRTIO_CONSOLE.");
 }
