@@ -41,7 +41,8 @@ inline void *setup_shmem(const char *key, size_t len, int creating, int verbose)
 	  int fill_bytes = 0xae0dae0d;
 	  if (verbose)
 	    fprintf(stderr,"Filling buffer\n");
-	  fill_mem(mem,len,(char *)&fill_bytes,4);
+	  //fill_mem(mem,len,(char *)&fill_bytes,4);
+	  fill_mem(mem,len,(char *)&fill_bytes,1);
 	}
 	return mem;
 }
@@ -55,7 +56,7 @@ inline void fill_mem(void *buf, size_t buf_size, char *fill, size_t fill_len)
 	} else {
 		if (buf_size > fill_len) {
 			for (i = 0; i < buf_size - fill_len; i += fill_len)
-				memcpy(buf + i, fill, fill_len);
+			  memcpy(((char *)buf) + i, fill, fill_len);
 			memcpy(buf + i, fill, buf_size - i);
 		} else {
 			memcpy(buf, fill, buf_size);

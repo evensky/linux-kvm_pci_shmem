@@ -22,6 +22,11 @@ struct virtio_pci_ops {
 	int (*get_size_vq)(struct kvm *kvm, void *dev, u32 vq);
 };
 
+struct virtio_pci_ioevent_param {
+	struct virtio_pci	*vpci;
+	u32			vq;
+};
+
 struct virtio_pci {
 	struct pci_device_header pci_hdr;
 	struct virtio_pci_ops	ops;
@@ -37,10 +42,13 @@ struct virtio_pci {
 	u32			vq_vector[VIRTIO_PCI_MAX_VQ];
 	u32			gsis[VIRTIO_PCI_MAX_VQ];
 	u32			msix_io_block;
-	int			msix_enabled;
+	u32			msix_pba_block;
+	u64			msix_pba;
+	struct msix_table	msix_table[VIRTIO_PCI_MAX_VQ + 1];
 
 	/* virtio queue */
 	u16			queue_selector;
+	struct virtio_pci_ioevent_param ioeventfds[VIRTIO_PCI_MAX_VQ];
 };
 
 int virtio_pci__init(struct kvm *kvm, struct virtio_pci *vpci, void *dev,

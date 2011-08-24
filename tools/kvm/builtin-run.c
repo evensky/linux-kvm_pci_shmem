@@ -54,6 +54,8 @@
 #define DEFAULT_SCRIPT		"none"
 
 #define MB_SHIFT		(20)
+#define KB_SHIFT		(10)
+#define GB_SHIFT		(30)
 #define MIN_RAM_SIZE_MB		(64ULL)
 #define MIN_RAM_SIZE_BYTE	(MIN_RAM_SIZE_MB << MB_SHIFT)
 
@@ -171,12 +173,14 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	const int skip_pci = strlen("pci:");
 	if (verbose)
 		pr_info("shmem_parser(%p,%s,%d)", opt, arg, unset);
+	/* parse out optional addr family */
 	if (strcasestr(p, "pci:")) {
 		p += skip_pci;
 		addr_type = PCI;
 	} else if (strcasestr(p, "mem:")) {
 		die("I can't add to E820 map yet.\n");
 	}
+	/* parse out physical addr */
 	base = 10;
 	if (strcasestr(p, "0x"))
 		base = 16;
@@ -192,6 +196,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		p = next;
 	else
 		p = next + 1;
+	/* parse out size */
 	base = 10;
 	if (strcasestr(p, "0x"))
 		base = 16;
@@ -199,6 +204,30 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	if (next == p && size == 0) {
 		pr_info("shmem: no size specified, using default.");
 		size = default_size;
+	}
+	/* look for [KMGkmg][Bb]*  uses base 2. */
+	int skip_B = 0;
+	if (strspn(next,"KMGkmg")) { /* might have a prefix */
+	  if (*(next+1) == 'B' || *(next+1) == 'b')
+	    skip_B = 1;
+	  switch(*next) {
+	  case 'K':
+	  case 'k':
+	    size = size << KB_SHIFT;
+	    break;
+	  case 'M':
+	  case 'm':
+	    size = size << MB_SHIFT;
+	    break;
+	  case 'G':
+	  case 'g':
+	    size = size << GB_SHIFT;
+	    break;
+	  default:
+	    die("shmem: bug in detecting size prefix.");
+	    break;
+	  }
+	  next += 1 + skip_B;
 	}
 	if (*next != ':' && *next != '\0') {
 		die("shmem: unexpected chars after phys size. <%c><%c>\n",
@@ -208,6 +237,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		p = next;
 	else
 		p = next + 1;
+	/* parse out optional shmem handle */
 	const int skip_handle = strlen("handle=");
 	if (*p && (next = strcasestr(p, "handle="))) {
 		if (p != next) {
@@ -225,6 +255,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		else
 			p = next + 1;
 	}
+	/* parse out optional create flag to see if we should create shmem segment */
 	if (*p && strcasestr(p, "create")) {
 		create = 1;
 		p += strlen("create");

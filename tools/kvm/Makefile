@@ -20,6 +20,8 @@ TAGS	:= ctags
 
 PROGRAM	:= kvm
 
+GUEST_INIT := guest/init
+
 OBJS	+= builtin-balloon.o
 OBJS	+= builtin-debug.o
 OBJS	+= builtin-help.o
@@ -28,6 +30,7 @@ OBJS	+= builtin-stat.o
 OBJS	+= builtin-pause.o
 OBJS	+= builtin-resume.o
 OBJS	+= builtin-run.o
+OBJS	+= builtin-setup.o
 OBJS	+= builtin-stop.o
 OBJS	+= builtin-version.o
 OBJS	+= cpuid.o
@@ -161,7 +164,7 @@ WARNINGS += -Wunused-result
 
 CFLAGS	+= $(WARNINGS)
 
-all: $(PROGRAM) fill
+all: $(PROGRAM) $(GUEST_INIT) fill
 
 KVMTOOLS-VERSION-FILE:
 	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
@@ -174,6 +177,10 @@ $(PROGRAM): $(DEPS) $(OBJS)
 fill: fill.o util/shmem-util.o
 	$(E) "  LINK    " $@
 	$(Q) $(CC) fill.o util/shmem-util.o $(LIBS) -o fill
+
+$(GUEST_INIT): guest/init.c
+	$(E) "  LINK    " $@
+	$(Q) $(CC) -static guest/init.c -o $@
 
 $(DEPS):
 
@@ -246,7 +253,7 @@ clean:
 	$(Q) rm -f bios/bios-rom.h
 	$(Q) rm -f tests/boot/boot_test.iso
 	$(Q) rm -rf tests/boot/rootfs/
-	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM)
+	$(Q) rm -f $(DEPS) $(OBJS) $(PROGRAM) $(GUEST_INIT)
 	$(Q) rm -f cscope.*
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
 	$(Q) rm -f KVMTOOLS-VERSION-FILE
