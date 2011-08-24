@@ -13,7 +13,7 @@ static struct pci_device_header pci_shmem_pci_device = {
 	.class = 0xFF0000,	/* misc pci device */
 };
 
-static struct shmem_info *shmem_region = NULL;
+static struct shmem_info *shmem_region;
 
 int pci_shmem__register_mem(struct shmem_info *si)
 {

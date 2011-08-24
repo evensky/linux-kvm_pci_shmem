@@ -21,8 +21,8 @@ inline void *setup_shmem(const char *key, size_t len, int creating, int verbose)
 		return NULL;
 	}
 	if (creating) {
-	  if (verbose)
-	    fprintf(stderr,"Truncating file.\n");
+		if (verbose)
+			fprintf(stderr, "Truncating file.\n");
 		rtn = ftruncate(fd, (off_t) len);
 		if (rtn == -1) {
 			fprintf(stderr, "Can't ftruncate(fd,%ld)\n", len);
@@ -38,10 +38,10 @@ inline void *setup_shmem(const char *key, size_t len, int creating, int verbose)
 		return NULL;
 	}
 	if (creating) {
-	  int fill_bytes = 0xae0dae0d;
-	  if (verbose)
-	    fprintf(stderr,"Filling buffer\n");
-	  fill_mem(mem,len,(char *)&fill_bytes,4);
+		int fill_bytes = 0xae0dae0d;
+		if (verbose)
+			fprintf(stderr, "Filling buffer\n");
+		fill_mem(mem, len, (char *)&fill_bytes, 4);
 	}
 	return mem;
 }
@@ -55,7 +55,7 @@ inline void fill_mem(void *buf, size_t buf_size, char *fill, size_t fill_len)
 	} else {
 		if (buf_size > fill_len) {
 			for (i = 0; i < buf_size - fill_len; i += fill_len)
-			  memcpy(((char *)buf) + i, fill, fill_len);
+				memcpy(((char *)buf) + i, fill, fill_len);
 			memcpy(buf + i, fill, buf_size - i);
 		} else {
 			memcpy(buf, fill, buf_size);

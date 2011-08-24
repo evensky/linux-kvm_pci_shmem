@@ -189,9 +189,8 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		pr_info("shmem: no physical addr specified, using default.");
 		phys_addr = default_phys_addr;
 	}
-	if (*next != ':' && *next != '\0') {
+	if (*next != ':' && *next != '\0')
 		die("shmem: unexpected chars after phys addr.\n");
-	}
 	if (*next == '\0')
 		p = next;
 	else
@@ -239,10 +238,10 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		p = next + 1;
 	/* parse out optional shmem handle */
 	const int skip_handle = strlen("handle=");
-	if (*p && (next = strcasestr(p, "handle="))) {
-		if (p != next) {
+	next = strcasestr(p, "handle=");
+	if (*p && next) {
+		if (p != next)
 			die("unexpected chars before handle\n");
-		}
 		p += skip_handle;
 		next = strchrnul(p, ':');
 		if (next - p) {
@@ -255,14 +254,13 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		else
 			p = next + 1;
 	}
-	/* parse out optional create flag to see if we should create shmem segment */
+	/* parse optional create flag to see if we should create shm seg. */
 	if (*p && strcasestr(p, "create")) {
 		create = 1;
 		p += strlen("create");
 	}
-	if (*p != '\0') {
+	if (*p != '\0')
 		die("shmem: unexpected trailing chars\n");
-	}
 	if (handle == NULL) {
 		handle = malloc(strlen(default_handle) + 1);
 		strcpy(handle, default_handle);
