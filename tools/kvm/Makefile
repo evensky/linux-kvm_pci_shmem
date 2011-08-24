@@ -164,7 +164,7 @@ WARNINGS += -Wunused-result
 
 CFLAGS	+= $(WARNINGS)
 
-all: $(PROGRAM) $(GUEST_INIT) fill
+all: $(PROGRAM) $(GUEST_INIT)
 
 KVMTOOLS-VERSION-FILE:
 	@$(SHELL_PATH) util/KVMTOOLS-VERSION-GEN $(OUTPUT)
@@ -173,10 +173,6 @@ KVMTOOLS-VERSION-FILE:
 $(PROGRAM): $(DEPS) $(OBJS)
 	$(E) "  LINK    " $@
 	$(Q) $(CC) $(OBJS) $(LIBS) -o $@
-
-fill: fill.o util/shmem-util.o
-	$(E) "  LINK    " $@
-	$(Q) $(CC) fill.o util/shmem-util.o $(LIBS) -o fill
 
 $(GUEST_INIT): guest/init.c
 	$(E) "  LINK    " $@
@@ -257,7 +253,6 @@ clean:
 	$(Q) rm -f cscope.*
 	$(Q) rm -f $(KVM_INCLUDE)/common-cmds.h
 	$(Q) rm -f KVMTOOLS-VERSION-FILE
-	$(Q) rm -f fill fill.o
 .PHONY: clean
 
 KVM_DEV	?= /dev/kvm

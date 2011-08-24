@@ -207,31 +207,31 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	}
 	/* look for [KMGkmg][Bb]*  uses base 2. */
 	int skip_B = 0;
-	if (strspn(next,"KMGkmg")) { /* might have a prefix */
-	  if (*(next+1) == 'B' || *(next+1) == 'b')
-	    skip_B = 1;
-	  switch(*next) {
-	  case 'K':
-	  case 'k':
-	    size = size << KB_SHIFT;
-	    break;
-	  case 'M':
-	  case 'm':
-	    size = size << MB_SHIFT;
-	    break;
-	  case 'G':
-	  case 'g':
-	    size = size << GB_SHIFT;
-	    break;
-	  default:
-	    die("shmem: bug in detecting size prefix.");
-	    break;
-	  }
-	  next += 1 + skip_B;
+	if (strspn(next, "KMGkmg")) {	/* might have a prefix */
+		if (*(next + 1) == 'B' || *(next + 1) == 'b')
+			skip_B = 1;
+		switch (*next) {
+		case 'K':
+		case 'k':
+			size = size << KB_SHIFT;
+			break;
+		case 'M':
+		case 'm':
+			size = size << MB_SHIFT;
+			break;
+		case 'G':
+		case 'g':
+			size = size << GB_SHIFT;
+			break;
+		default:
+			die("shmem: bug in detecting size prefix.");
+			break;
+		}
+		next += 1 + skip_B;
 	}
 	if (*next != ':' && *next != '\0') {
 		die("shmem: unexpected chars after phys size. <%c><%c>\n",
-			*next, *p);
+		    *next, *p);
 	}
 	if (*next == '\0')
 		p = next;
@@ -248,7 +248,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 		if (next - p) {
 			handle = malloc(next - p + 1);
 			strncpy(handle, p, next - p);
-			handle[next - p] = '\0';	/* just in case.*/
+			handle[next - p] = '\0';	/* just in case. */
 		}
 		if (*next == '\0')
 			p = next;
@@ -278,7 +278,7 @@ static int shmem_parser(const struct option *opt, const char *arg, int unset)
 	si->size = size;
 	si->handle = handle;
 	si->create = create;
-	pci_shmem__register_mem(si);	/* ownership of si, etc. passed on.*/
+	pci_shmem__register_mem(si);	/* ownership of si, etc. passed on. */
 	return 0;
 }
 
